@@ -8,8 +8,7 @@
 body {
     padding: 10px;
     margin: 0;
-    min-width: 300px;
-
+    max-width: 275px;
     font-family: "Helvetica", "Arial", sans-serif;
 }
 
@@ -39,6 +38,8 @@ a:hover {
     height: 60px;
     cursor: hand;
     cursor: pointer;
+    margin:auto;
+    display:block;
 }
 
 #song.nosong {
@@ -81,7 +82,7 @@ a:hover {
 }
 
 #lastfm-profile {
-    float: right;
+    float: left;
 }
 
 a.logout {
@@ -115,7 +116,7 @@ a.notloved {
 a.play, a.pause {
     display: inline-block;
     width: 16px;
-    height: 18;
+    height: 18px;
     background-image: url('../img/play_pause.png');
     background-repeat: no-repeat;
 }
@@ -157,4 +158,32 @@ a.pause {
     border-bottom: 1px dotted #000;
     padding-bottom: 10px;
     margin-bottom: 10px;
+}
+
+@-webkit-keyframes scroll {
+    0% {
+        -webkit-transform: translate(0,0);
+    }
+    100%{
+        -webkit-transform: translate(-100%,0);
+    }
+}
+
+.marquee{
+    display:block;
+    width:100%;
+    white-space:nowrap;
+    overflow:hidden;
+}
+
+.marquee span {
+    display:inline-block;
+    padding-left:100%;
+    -webkit-animation:scroll 5s infinite linear;
+}
+.marquee span:hover {
+  -webkit-animation-play-state: paused
+}
+#artist_track{
+    font-weight: bold;
 }

@@ -4,52 +4,56 @@
  Copyright (c) 2011 Alexey Savartsov <asavartsov@gmail.com>
  Licensed under the MIT license
 -->
-<head>
-    <link rel="stylesheet" type="text/css" href="../css/popup.css">
+<!DOCTYPE html> 
+    <head>
+        <link rel="stylesheet" type="text/css" href="../css/popup.css">
 
-    <script src="../js/jquery-1.7.min.js"></script>
-    <script src="../js/md5.js"></script>
-    <script src="../js/lastfm.js"></script>
-    <script src="../js/util.js"></script>
-    <script src="../js/popup.js"></script>
-</head>
-<body>
-    <div id="alert" class="hidden">
-        Keyboard shortcuts are now available. To edit them, go to
-        <a id="extns_link" href="#">chrome://extensions</a> and click
-        "Keyboard shortcuts" at the bottom right of the page.
-        (<a id="dismiss_alert" href="#">dismiss</a>)
-    </div>
-    <div id="content">
-        <div id="main">
-            <div id="cover-box">
-                <img id="cover"/>
-            </div>
-            <div id="song">
-                <span id="now-playing">
-                    <span id="artist"></span>&nbsp;-&nbsp;
-                    <span id="track"></span>
-                </span>
-                <div id="album"></div>
-                <div id="controls">
-                    <span id="lastfm-buttons">
-                        <span id="love-button"></span>
-                        &nbsp;&nbsp;&nbsp;
+        <script src="../js/jquery-1.7.min.js"></script>
+        <script src="../js/md5.js"></script>
+        <script src="../js/lastfm.js"></script>
+        <script src="../js/util.js"></script>
+        <script src="../js/popup.js"></script>
+    </head>
+    <body>
+
+        <div id="alert" class="hidden">
+            Keyboard shortcuts are now available. To edit them, go to
+            <a id="extns_link" href="#">chrome://extensions</a> and click
+            "Keyboard shortcuts" at the bottom right of the page.
+            (<a id="dismiss_alert" href="#">dismiss</a>)
+        </div>
+        <div id="content">
+            <div id="main">
+                <div id="cover-box">
+                    <img id="cover"/>
+                </div>
+                <div id="song">
+                    <span id="now-playing">
+                        <div class="marquee">
+                            <span id="artist_track"></span>
+                        </div>    
                     </span>
-                    <span id="player-controls">
-                        <a id="prev-btn" href="#"></a>
-                        &nbsp;&nbsp;&nbsp;
-                        <a id="play-pause-btn" href="#"></a>
-                        &nbsp;&nbsp;&nbsp;
-                        <a id="next-btn" href="#"></a>
-                    </span>
+                    <div id="album"></div>
+                    <div id="controls">
+                        <span id="lastfm-buttons">
+                            <span id="love-button"></span>
+                            &nbsp;&nbsp;&nbsp;
+                        </span>
+                        <span id="player-controls">
+                            <a id="prev-btn" href="#"></a>
+                            &nbsp;&nbsp;&nbsp;
+                            <a id="play-pause-btn" href="#"></a>
+                            &nbsp;&nbsp;&nbsp;
+                            <a id="next-btn" href="#"></a>
+                        </span>
+                    </div>
                 </div>
             </div>
+            <div class="clear"></div>
+            <div id="bottom">
+                <div id="scrobbling"></div>
+                <div id="lastfm-profile"></div>
+            </div>
         </div>
-        <div class="clear"></div>
-        <div id="bottom">
-            <div id="scrobbling"></div>
-            <div id="lastfm-profile"></div>
-        </div>
-    </div>
-</body>
+    </body>
+</html>
