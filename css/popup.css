@@ -9,7 +9,8 @@ body {
     margin: 0;
     min-width: 300px;
     background-color: #FFFFFF;
-    font-family: 'Roboto', sans-serif;}
+    font-family: 'Roboto', sans-serif;
+}
 
 span {
     line-height: 100%;
