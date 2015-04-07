@@ -40,6 +40,7 @@ a:hover {
   transform: translate(-50%,-50%);
   color: #FFFFFF;
   font-size: 13px;
+  text-align: center;
 }
 
 #cover {
@@ -58,13 +59,14 @@ a:hover {
 }
 
 #song {
-    padding-top: 5px;
+      padding-top: 5px;
     margin-left: 125px;
 }
 
 #artist {
     color: #707070;
     font-size: 14;
+    font-weight: normal;
     float: left;
     margin-right: 5px;
 }
@@ -72,11 +74,13 @@ a:hover {
 #album {
     min-height: 25px;
     font-size: 14;
+    font-weight: normal;
     color: #707070;
 }
 
 #track {
     font-size: 20px;
+    font-weight: 300;
     color: #333333;
 }
 
