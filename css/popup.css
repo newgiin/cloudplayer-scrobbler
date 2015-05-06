@@ -6,11 +6,10 @@
  */
 
 body {
-    padding: 10px;
     margin: 0;
     min-width: 300px;
-
-    font-family: "Helvetica", "Arial", sans-serif;
+    background-color: #FFFFFF;
+    font-family: 'Roboto', sans-serif;
 }
 
 span {
@@ -27,18 +26,29 @@ a:hover {
 
 #cover-box {
     float: left;
-    border-color: #FFC200;
-    border-width: 2px;
-    border-style: solid;
-    border-radius: 5px;
+    background-color: #fb8521;
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+#nothing_playing {
+  cursor: hand;
+  cursor: pointer;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  color: #FFFFFF;
+  font-size: 13px;
+  text-align: center;
 }
 
 #cover {
-    border: none;
-    width: 60px;
-    height: 60px;
     cursor: hand;
     cursor: pointer;
+    width: 100%;
+    height: 100%;
 }
 
 #song.nosong {
@@ -50,30 +60,40 @@ a:hover {
 }
 
 #song {
-    margin-left: 75px;
+      padding-top: 5px;
+    margin-left: 125px;
 }
 
 #artist {
-    font-weight: bold;
+    color: #707070;
+    font-size: 14;
+    font-weight: normal;
+    float: left;
+    margin-right: 5px;
 }
 
 #album {
     min-height: 25px;
-    font-style: italic;
-    color: #999;
-    font-size: 80%;
+    font-size: 14;
+    font-weight: normal;
+    color: #707070;
 }
 
 #track {
-    margin-top: 6px;
-    font-size: 14px;
+    font-size: 20px;
+    font-weight: 300;
+    color: #333333;
+}
+
+#controls {
+  margin-top: 5px;
 }
 
 #bottom {
-    margin-top: 10px;
     font-size: 11px;
-
+    background-color: #E5E5E5;
     color: grey;
+    height: 15px;
 }
 
 #scrobbling {

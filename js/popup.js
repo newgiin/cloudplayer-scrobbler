@@ -25,12 +25,14 @@ $(document).ready(function() {
 
 function set_play_link() {
     $("#cover").click(open_play_tab);
+    $("#nothing_playing").click(open_play_tab);
+
 }
 /* Render functions */
 function update_song_info() {
     $("#artist").text(bp.player.song.artist);
     $("#track").text(bp.player.song.title);
-    $("#cover").attr({ src: bp.player.song.cover || "../img/defaultcover.png",
+    $("#cover").attr({ src: bp.player.song.cover,
         alt:bp.player.song.album});
     $("#album").text(bp.player.song.album);
 
@@ -65,6 +67,7 @@ function toggle_play_btn() {
 function render_song() {
     if (bp.player.has_song) {
         update_song_info();
+        $("#nothing_playing").hide();
         $("#play-pause-btn").click(toggle_play);
         $("#next-btn").click(next_song);
         $("#prev-btn").click(prev_song);
@@ -73,9 +76,8 @@ function render_song() {
         }
     } else {
         $("#song").addClass("nosong");
-        $("#artist").text("");
+        $("#artist").text("Nothing is currently playing");
         $("#track").html('');
-        $("#cover ").attr({ src: "../img/defaultcover.png" });
         $("#lastfm-buttons").hide();
         $("#player-controls").hide();
     }
