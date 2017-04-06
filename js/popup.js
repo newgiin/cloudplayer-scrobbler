@@ -20,6 +20,7 @@ $(document).ready(function() {
             render_scrobble_link();
         }
         render_auth_link();
+        render_tweet_button();
     });
 });
 
@@ -71,6 +72,7 @@ function render_song() {
         $("#cover ").attr({ src: "../img/defaultcover.png" });
         $("#lastfm-buttons").hide();
         $("#player-controls").hide();
+        $('#social-buttons').hide();
     }
 }
 
@@ -267,5 +269,16 @@ function show_alert() {
     $("#dismiss_alert").click(function() {
         $("#alert").addClass("hidden");
         localStorage.setItem("seen_alert", "1");
+    });
+}
+
+/**
+ * Tweet button was clicked
+ */
+function render_tweet_button(){
+    $('#tweet-button').click(function(){
+        var query = '#NowPlaying ' + $('#track').text() + ' by ' + $('#artist').text();
+        query = encodeURIComponent(query);
+        window.open('https://twitter.com/share?text=' + query, '_blank', 'width=500,height=380,scrollbars=yes');
     });
 }

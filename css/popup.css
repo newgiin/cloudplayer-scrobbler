@@ -144,6 +144,14 @@ a.pause {
     background-repeat: no-repeat;
 }
 
+#tweet-button {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-image: url('https://twitter.com/favicons/favicon.ico');
+    background-size: 16px 16px;
+}
+
 .clear {
     clear: both;
 }
