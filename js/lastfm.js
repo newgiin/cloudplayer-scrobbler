@@ -222,62 +222,50 @@ LastFM.prototype._req_sign = function(params) {
 };
 
 /**
- * Performs an XMLHTTP request and expects JSON as reply
+ * Performs a fetch request and expects JSON as reply
  *
  * @param method Request method (GET or POST)
  * @param params Hash with request values. All request fields will be
  *               automatically urlencoded
  * @param callback Callback function for the request. Sends a parameter with
- *                 reply decoded as JS object from JSON on null on error
+ *                 reply decoded as JS object from JSON or null on error
  */
 LastFM.prototype._xhr = function(method, params, callback) {
     var uri = this.API_ROOT;
-    var _data = "";
     var _params = [];
-    var xhr = new XMLHttpRequest();
 
-    for(param in params) {
-        _params.push(encodeURIComponent(param) + "="
-            + encodeURIComponent(params[param]));
+    for (var param in params) {
+        _params.push(encodeURIComponent(param) + "=" + encodeURIComponent(params[param]));
     }
 
-    switch(method) {
-        case "GET":
-            uri += '?' + _params.join('&').replace(/%20/, '+');
-            break;
-        case "POST":
-            _data = _params.join('&');
-            break;
-        default:
-            return;
-    }
-
-    xhr.open(method, uri);
-
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4) {
-            var reply;
-
-            try {
-                reply = JSON.parse(xhr.responseText);
-                if (reply.error) {
-                    console.log('Last.fm ' + params.method +
-                            ' error: ' + reply.error)
-                }
-            }
-            catch (e) {
-                reply = null;
-                console.log('Error parsing JSON response.');
-                console.log('Request params:');
-                console.log(params);
-            }
-            callback(reply);
+    var options = {
+        method: method,
+        headers: {
+            "Content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "If-Modified-Since": "Thu, 01 Jun 1970 00:00:00 GMT",
+            "Pragma": "no-cache"
         }
     };
 
-    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded; charset=UTF-8");
-    // The cache is a lie!
-    xhr.setRequestHeader("If-Modified-Since", "Thu, 01 Jun 1970 00:00:00 GMT");
-    xhr.setRequestHeader("Pragma", "no-cache");
-    xhr.send(_data || null);
+    if (method === "GET") {
+        uri += '?' + _params.join('&').replace(/%20/, '+');
+    } else if (method === "POST") {
+        options.body = _params.join('&');
+    } else {
+        return;
+    }
+
+    fetch(uri, options)
+        .then(function(response) { return response.json(); })
+        .then(function(reply) {
+            if (reply.error) {
+                console.log('Last.fm ' + params.method + ' error: ' + reply.error);
+            }
+            callback(reply);
+        })
+        .catch(function(e) {
+            console.log('Error parsing JSON response.');
+            console.log('Request params:', params);
+            callback(null);
+        });
 };

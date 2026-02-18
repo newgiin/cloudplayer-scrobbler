@@ -1,237 +1,239 @@
 /**
- * background.js
- * Background page script
+ * background.js — MV3 Service Worker
  * Copyright (c) 2011 Alexey Savartsov <asavartsov@gmail.com>
  * Licensed under the MIT license
  */
-log("background.js loaded");
-var player = {}; // Previous player state
+
+importScripts(
+    'md5.js',
+    'lastfm.js',
+    'settings.js',
+    'util.js',
+    'logging.js'
+);
+
+// ---------------------------------------------------------------------------
+// State (lives only while the service worker is alive)
+// ---------------------------------------------------------------------------
+var player = {};
 var time_played = 0;
-var last_refresh = (new Date()).getTime();
+var last_refresh = Date.now();
 var num_scrobbles = 0;
 var curr_song_title = '';
-var lastfm_api = new LastFM(SETTINGS.api_key, SETTINGS.api_secret);
 
-// Load settings from local storage
-lastfm_api.session.key = localStorage.getItem('session_key');
-lastfm_api.session.name = localStorage.getItem('session_name');
+var lastfm_api = null;  // initialised after settings load
 
+// ---------------------------------------------------------------------------
+// Bootstrap — load persisted settings then wire everything up
+// ---------------------------------------------------------------------------
+loadSettings().then(function(stored) {
+    lastfm_api = new LastFM(SETTINGS.api_key, SETTINGS.api_secret);
+    lastfm_api.session.key  = stored.session_key  || null;
+    lastfm_api.session.name = stored.session_name || null;
 
-if (!SETTINGS.scrobble) {
-  chrome.browserAction.setIcon({'path': SETTINGS.scrobbling_stopped_icon});
-}
+    log('background.js loaded (service worker)');
 
-// Connect event handlers
-chrome.runtime.onConnect.addListener(port_on_connect);
-bind_keyboard_shortcuts();
-
-
-/**
- * Content script has connected to the extension
- */
-function port_on_connect(port) {
-  log("Content script connected");
-  port.onMessage.addListener(port_on_message);
-  port.onDisconnect.addListener(port_on_disconnect);
-}
-
-
-/**
- * New message arrives to the port
- */
-function port_on_message(message) {
-  // Current player state
-  var _p = message;
-  var now = (new Date()).getTime();
-
-  // Save player state
-  player = _p;
-
-  if (!SETTINGS.scrobble) {
-    chrome.browserAction.setIcon({'path': SETTINGS.scrobbling_stopped_icon});
-
-    return;
-  }
-
-  if (_p.has_song) {
-    // if the song changed or looped
-    if (_p.song.title != curr_song_title ||
-        _p.song.position <= SETTINGS.refresh_interval) {
-      log("Started playing: " + _p.song.artist + " - " + _p.song.title);
-      curr_song_title = _p.song.title;
-      time_played = 0;
-      num_scrobbles = 0;
-      last_refresh = now - SETTINGS.refresh_interval*1000;
-
-      lastfm_api.now_playing(_p.song.title,
-        _p.song.artist,
-        _p.song.album,
-        _p.song.time,
-        function(response) {
-           // TODO:
-        }
-      );
+    if (!SETTINGS.scrobble) {
+        chrome.action.setIcon({ path: SETTINGS.scrobbling_stopped_icon });
     }
 
-    if (_p.is_playing) {
-      chrome.browserAction.setIcon({'path': SETTINGS.playing_icon });
-      if ((_p.song.time &&
-           time_played >= _p.song.time * SETTINGS.scrobble_point ||
-           time_played >= SETTINGS.scrobble_interval) &&
-           num_scrobbles < SETTINGS.max_scrobbles &&
-           !is_advertisment(_p.song)) {
-        log("Scrobbled: " + _p.song.artist + " - " + _p.song.title);
-        log("time_played: " + time_played);
-        log("scrobble point: " + (_p.song.time * SETTINGS.scrobble_point));
-        log("num_scrobbles: " + num_scrobbles);
+    // Messages from content scripts and popup/callback pages
+    chrome.runtime.onMessage.addListener(on_message);
 
-        scrobble_song(_p.song.artist,_p.song.album_artist,
-          _p.song.album, _p.song.title,
-          Math.round(new Date().getTime() / 1000 - time_played));
-        time_played = 0;
-        num_scrobbles += 1;
-      } else {
-        /*
-        * Don't depend on the SETTINGS.refresh_interval to
-        * calculate time_played since there can be a significant delay
-        * between the time the message was sent from the contentscript
-        * to when it's recieved here.
-        * See: https://github.com/newgiin/cloudplayer-scrobbler/issues/23
-        */
-        time_played += (now - last_refresh) / 1000;
-      }
+    bind_keyboard_shortcuts();
+});
+
+// ---------------------------------------------------------------------------
+// Player state handler (called by content scripts via sendMessage)
+// ---------------------------------------------------------------------------
+function handle_player_state(_p) {
+    var now = Date.now();
+
+    player = _p;
+
+    if (!SETTINGS.scrobble) {
+        chrome.action.setIcon({ path: SETTINGS.scrobbling_stopped_icon });
+        return;
+    }
+
+    if (_p.has_song) {
+        if (_p.song.title !== curr_song_title ||
+            _p.song.position <= SETTINGS.refresh_interval) {
+
+            log('Started playing: ' + _p.song.artist + ' - ' + _p.song.title);
+            curr_song_title = _p.song.title;
+            time_played     = 0;
+            num_scrobbles   = 0;
+            last_refresh    = now - SETTINGS.refresh_interval * 1000;
+
+            lastfm_api.now_playing(
+                _p.song.title, _p.song.artist, _p.song.album, _p.song.time,
+                function() {}
+            );
+        }
+
+        if (_p.is_playing) {
+            chrome.action.setIcon({ path: SETTINGS.playing_icon });
+
+            if ((_p.song.time &&
+                 time_played >= _p.song.time * SETTINGS.scrobble_point ||
+                 time_played >= SETTINGS.scrobble_interval) &&
+                num_scrobbles < SETTINGS.max_scrobbles &&
+                !is_advertisement(_p.song)) {
+
+                log('Scrobbled: ' + _p.song.artist + ' - ' + _p.song.title);
+                scrobble_song(
+                    _p.song.artist, _p.song.album_artist,
+                    _p.song.album,  _p.song.title,
+                    Math.round(Date.now() / 1000 - time_played)
+                );
+                time_played   = 0;
+                num_scrobbles += 1;
+            } else {
+                time_played += (now - last_refresh) / 1000;
+            }
+        } else {
+            chrome.action.setIcon({ path: SETTINGS.paused_icon });
+        }
     } else {
-      // The player is paused
-      chrome.browserAction.setIcon({'path': SETTINGS.paused_icon});
+        chrome.action.setIcon({ path: SETTINGS.main_icon });
     }
-  } else {
-    chrome.browserAction.setIcon({'path': SETTINGS.main_icon});
-  }
-  last_refresh = now;
+    last_refresh = now;
 }
 
+// ---------------------------------------------------------------------------
+// Message handler — content scripts + popup/callback pages
+// ---------------------------------------------------------------------------
+function on_message(message, sender, sendResponse) {
+    switch (message.type) {
+        case 'player_state':
+            handle_player_state(message.state);
+            return false;
 
+        case 'get_state':
+            sendResponse({
+                player:   player,
+                session:  lastfm_api ? lastfm_api.session : {},
+                scrobble: SETTINGS.scrobble
+            });
+            return false;
+
+        case 'start_web_auth':
+            start_web_auth();
+            return false;
+
+        case 'clear_session':
+            clear_session();
+            sendResponse({ ok: true });
+            return false;
+
+        case 'toggle_scrobble':
+            toggle_scrobble();
+            sendResponse({ scrobble: SETTINGS.scrobble });
+            return false;
+
+        case 'get_lastfm_session':
+            get_lastfm_session(message.token, function() {
+                sendResponse({ ok: true });
+            });
+            return true; // async
+
+        case 'open_extensions_page':
+            chrome.tabs.create({ url: 'chrome://extensions/' });
+            return false;
+
+        case 'love_track':
+            lastfm_api.love_track(message.track, message.artist, function(result) {
+                sendResponse(result);
+            });
+            return true;
+
+        case 'unlove_track':
+            lastfm_api.unlove_track(message.track, message.artist, function(result) {
+                sendResponse(result);
+            });
+            return true;
+
+        case 'is_track_loved':
+            lastfm_api.is_track_loved(message.track, message.artist, function(result) {
+                sendResponse(result);
+            });
+            return true;
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 function scrobble_song(artist, album_artist, album, title, time) {
-  // Scrobble this song
-  lastfm_api.scrobble(artist, album_artist, album, title, time,
-    function(response) {
-      if (response.error) {
-        if (response.error == 9) {
-          // Session expired
-          clear_session();
+    lastfm_api.scrobble(artist, album_artist, album, title, time,
+        function(response) {
+            if (response && response.error) {
+                if (response.error === 9) clear_session();
+                chrome.action.setIcon({ path: SETTINGS.error_icon });
+            }
         }
-        chrome.browserAction.setIcon({'path': SETTINGS.error_icon});
-      }
+    );
+}
+
+function is_advertisement(song) {
+    return (song.title  === SETTINGS.gmusic_ads_metadata.title &&
+            song.artist === SETTINGS.gmusic_ads_metadata.artist);
+}
+
+function start_web_auth() {
+    var callback_url = chrome.runtime.getURL(SETTINGS.callback_file);
+    chrome.tabs.create({
+        url: 'http://www.last.fm/api/auth?api_key=' + SETTINGS.api_key +
+             '&cb=' + callback_url
     });
 }
 
-
-function is_advertisment(song) {
-  return (song.title === SETTINGS.gmusic_ads_metadata.title &&
-          song.artist === SETTINGS.gmusic_ads_metadata.artist);
-}
-
-
-/**
- * Content script has disconnected
- */
-function port_on_disconnect() {
-  player = {}; // Clear player state
-  time_played = 0;
-  num_scrobbles = 0;
-  curr_song_title = '';
-  chrome.browserAction.setIcon({'path': SETTINGS.main_icon});
-}
-
-
-/**
- * Authentication link from popup window
- */
-function start_web_auth() {
-  var callback_url = chrome.runtime.getURL(SETTINGS.callback_file);
-  chrome.tabs.create({
-    'url': ('http://www.last.fm/api/auth?api_key=' + SETTINGS.api_key + '&cb=' +
-            callback_url)
-  });
-}
-
-
-/**
- * Clears last.fm session
- */
 function clear_session() {
-  lastfm_api.session = {};
-
-  localStorage.removeItem('session_key');
-  localStorage.removeItem('session_name');
+    if (lastfm_api) lastfm_api.session = {};
+    chrome.storage.local.remove(['session_key', 'session_name']);
 }
 
-
-/**
- * Toggles setting to scrobble songs or not
- */
 function toggle_scrobble() {
-  SETTINGS.scrobble = !SETTINGS.scrobble;
-  localStorage.setItem('scrobble', SETTINGS.scrobble);
-
-  // Set the icon corresponding the current scrobble state
-  var icon = (SETTINGS.scrobble ?
-              SETTINGS.main_icon : SETTINGS.scrobbling_stopped_icon);
-  chrome.browserAction.setIcon({'path': icon});
+    SETTINGS.scrobble = !SETTINGS.scrobble;
+    chrome.storage.local.set({ scrobble: SETTINGS.scrobble });
+    chrome.action.setIcon({
+        path: SETTINGS.scrobble ? SETTINGS.main_icon : SETTINGS.scrobbling_stopped_icon
+    });
 }
 
-
-/**
- * Last.fm session request
- */
-function get_lastfm_session(token) {
-  lastfm_api.authorize(token, function(response) {
-    // Save session
-    if (response.session) {
-      localStorage.setItem('session_key', response.session.key);
-      localStorage.setItem('session_name', response.session.name);
-    }
-  });
+function get_lastfm_session(token, callback) {
+    lastfm_api.authorize(token, function(response) {
+        if (response && response.session) {
+            chrome.storage.local.set({
+                session_key:  response.session.key,
+                session_name: response.session.name
+            });
+        }
+        if (callback) callback();
+    });
 }
-
 
 function bind_keyboard_shortcuts() {
-  chrome.commands.onCommand.addListener(
-    function(command) {
-      switch (command) {
-        case 'toggle_play':
-          send_cmd_to_play_tab('tgl');
-          break;
-        case 'prev_song':
-          send_cmd_to_play_tab('prv');
-          break;
-        case 'next_song':
-          send_cmd_to_play_tab('nxt');
-          break;
-        case 'goto_play_tab':
-          open_play_tab();
-          break;
-        default:
-          console.error("No handler for command '" + command + "'");
-      }
-    }
-  );
+    chrome.commands.onCommand.addListener(function(command) {
+        switch (command) {
+            case 'toggle_play':   send_cmd_to_play_tab('tgl'); break;
+            case 'prev_song':     send_cmd_to_play_tab('prv'); break;
+            case 'next_song':     send_cmd_to_play_tab('nxt'); break;
+            case 'goto_play_tab': open_play_tab();              break;
+            default:
+                console.error("No handler for command '" + command + "'");
+        }
+    });
 }
-
 
 function send_cmd_to_play_tab(cmd) {
-  find_play_tab(
-    function(tab) {
-      if (tab) {
-        chrome.tabs.sendMessage(tab.id, {cmd: cmd}, function() {});
-      } else {
-        log("Unable to find Play tab");
-      }
-    }
-  );
-}
-
-
-function open_extensions_page() {
-  chrome.tabs.create({url: 'chrome://extensions/'});
+    find_play_tab(function(tab) {
+        if (tab) {
+            chrome.tabs.sendMessage(tab.id, { cmd: cmd }, function() { void chrome.runtime.lastError; });
+        } else {
+            log('Unable to find Play tab');
+        }
+    });
 }

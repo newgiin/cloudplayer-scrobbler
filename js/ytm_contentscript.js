@@ -1,200 +1,115 @@
 /**
- * contentscripts.js
- * Parses player page and transmit song information to background page
- * Copyright (c) 2011 Alexey Savartsov, <asavartsov@gmail.com>, Brad Lambeth <brad@lambeth.us>
- * Licensed under the MIT license
+ * ytm_contentscript.js — YouTube Music content script (MV3)
  */
 
-/**
- * Player class
- *
- * Cloud Player page parser
- */
+// Default settings used in content script context
+var CS_SETTINGS = {
+    refresh_interval: 2
+};
+
+// ---------------------------------------------------------------------------
+// Player / Parser classes
+// ---------------------------------------------------------------------------
+
 function Player(parser) {
-    this.has_song = parser._get_has_song();
+    this.has_song   = parser._get_has_song();
     this.is_playing = parser._get_is_playing();
     this.song = {
-        position: parser._get_song_position(),
-        time: parser._get_song_time(),
-        title: parser._get_song_title(),
-        artist: parser._get_song_artist(),
+        position:     parser._get_song_position(),
+        time:         parser._get_song_time(),
+        title:        parser._get_song_title(),
+        artist:       parser._get_song_artist(),
         album_artist: parser._get_album_artist(),
-        album: parser._get_song_album(),
-        cover: parser._get_song_cover()
+        album:        parser._get_song_album(),
+        cover:        parser._get_song_cover()
     };
 }
 
-/**
- * Constructor for parser class
- * Executes scripts to fetch now playing info from cloudplayer
- * @returns {YtMusicParser}
- */
-YtMusicParser = function() {
+var YtMusicParser = function() {};
 
-};
-
-/**
- * Check whether a song loaded into player widget
- *
- * @return true if some song is loaded, otherwise false
- */
 YtMusicParser.prototype._get_has_song = function() {
-    return $("yt-formatted-string.title.ytmusic-player-bar").text().length > 0;
+    return $('yt-formatted-string.title.ytmusic-player-bar').text().length > 0;
 };
 
-/**
- * Checks whether song is playing or paused
- *
- * @return true if song is playing, false if song is paused
- */
 YtMusicParser.prototype._get_is_playing = function() {
-    // YT app prepends current song's name to the tab title
-    var songTitle = this._get_song_title()
-    return songTitle.length > 0 && window.document.title.startsWith(songTitle)
+    var songTitle = this._get_song_title();
+    return songTitle.length > 0 && window.document.title.startsWith(songTitle);
 };
 
-/**
- * Get current song playing position
- *
- * @return Playing position in seconds
- */
 YtMusicParser.prototype._get_song_position = function() {
-    var _time = $("span.time-info").text().split("/")[0];
-    _time = $.trim(_time).split(":");
-    if(_time.length == 2)
-    {
-        return (parseInt(_time[0]) * 60 + parseInt(_time[1]));
-    }
-    else if (_time.length == 3)
-    {
-        return (parseInt(_time[0]) * 3600 + parseInt(_time[1]) * 60 + parseInt(_time[2]));
-    }
+    var _time = $('span.time-info').text().split('/')[0];
+    _time = $.trim(_time).split(':');
+    if (_time.length === 2) return parseInt(_time[0]) * 60 + parseInt(_time[1]);
+    if (_time.length === 3) return parseInt(_time[0]) * 3600 + parseInt(_time[1]) * 60 + parseInt(_time[2]);
     return null;
 };
 
-/**
- * Get current song length
- *
- * @return Song length in seconds
- */
 YtMusicParser.prototype._get_song_time = function() {
-    var _time = $("span.time-info").text().split("/")[1];
-    _time = $.trim(_time).split(":");
-    if(_time.length == 2) {
-        return (parseInt(_time[0]) * 60 + parseInt(_time[1]));
-    }
-    else if (_time.length == 3)
-    {
-        return (parseInt(_time[0]) * 3600 + parseInt(_time[1]) * 60 + parseInt(_time[2]));
-    }
+    var _time = $('span.time-info').text().split('/')[1];
+    _time = $.trim(_time).split(':');
+    if (_time.length === 2) return parseInt(_time[0]) * 60 + parseInt(_time[1]);
+    if (_time.length === 3) return parseInt(_time[0]) * 3600 + parseInt(_time[1]) * 60 + parseInt(_time[2]);
     return null;
 };
 
-/**
- * Get current song title
- *
- * @return Song title
- */
 YtMusicParser.prototype._get_song_title = function() {
-    // the text inside the div located inside element with id="playerSongTitle"
-    return $("yt-formatted-string.title.ytmusic-player-bar").text();
+    return $('yt-formatted-string.title.ytmusic-player-bar').text();
 };
 
-/**
- * Get current song artist
- *
- * @return Song artist
- */
 YtMusicParser.prototype._get_song_artist = function() {
-   return $("span.subtitle.ytmusic-player-bar>yt-formatted-string>a").first().text();
+    return $('span.subtitle.ytmusic-player-bar>yt-formatted-string>a').first().text();
 };
 
-/**
- * Get current song album artist
- *
- * @return The album artist
- */
 YtMusicParser.prototype._get_album_artist = function() {
-    // TODO: Check if album artist is actually available.
-   return $("span.subtitle.ytmusic-player-bar>yt-formatted-string>a").first().text();
+    return $('span.subtitle.ytmusic-player-bar>yt-formatted-string>a').first().text();
 };
 
-/**
- * Get current song artwork
- *
- * @return Image URL or default artwork
- */
 YtMusicParser.prototype._get_song_cover = function() {
-    var albumImg = $("div.thumbnail-image-wrapper.ytmusic-player-bar>img").attr("src");
-    if (albumImg)
-        return albumImg;
-    return null;
+    var albumImg = $('div.thumbnail-image-wrapper.ytmusic-player-bar>img').attr('src');
+    return albumImg || null;
 };
 
-/**
- * Get current song album name
- *
- * @return Album name or null
- */
 YtMusicParser.prototype._get_song_album = function() {
-    return $("span.subtitle.style-scope.ytmusic-player-bar>yt-formatted-string>a").last().text();
+    return $('span.subtitle.style-scope.ytmusic-player-bar>yt-formatted-string>a').last().text();
 };
 
-var port = chrome.runtime.connect();
+// ---------------------------------------------------------------------------
+// Poll via sendMessage — wakes the service worker on demand each interval
+// ---------------------------------------------------------------------------
 
-window.setInterval(function() {
-    port.postMessage(new Player(new YtMusicParser()));
-},
-SETTINGS.refresh_interval * 1000);
+chrome.storage.local.get('refresh_interval', function(items) {
+    var interval = (items.refresh_interval || CS_SETTINGS.refresh_interval) * 1000;
+    window.setInterval(function() {
+        chrome.runtime.sendMessage(
+            { type: 'player_state', state: new Player(new YtMusicParser()) },
+            function() { void chrome.runtime.lastError; }
+        );
+    }, interval);
+});
 
-/*
-* Listeners for player control buttons
-*/
-chrome.runtime.onMessage.addListener(toggle_play);
-chrome.runtime.onMessage.addListener(prev_song);
-chrome.runtime.onMessage.addListener(next_song);
+// ---------------------------------------------------------------------------
+// Player control listeners
+// ---------------------------------------------------------------------------
 
-function toggle_play(msg, sndr, send_response) {
-    if (msg.cmd == "tgl") {
-        var play_btn = $("#play-pause-button");
-        play_btn.click();
-        /*
-        * Wait a little for the UI to update before sending a response
-        * with the updated state.
-        */
-        setTimeout(function() {
-            send_response(new Player(new YtMusicParser()));
-        }, 100);
-        /*
-        * Return true keeps the message channel open so the timeout function
-        * will be called, otherwise send_response will not work per
-        * https://developer.chrome.com/extensions/runtime#event-onMessage.
-        */
+chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+    var btn;
+    if (msg.cmd === 'tgl') {
+        btn = $('#play-pause-button')[0];
+        if (btn) btn.click();
+        setTimeout(function() { sendResponse(new Player(new YtMusicParser())); }, 100);
+        return true;
+    }
+    if (msg.cmd === 'prv') {
+        btn = $('div.left-controls-buttons>.previous-button')[0];
+        if (btn) btn.click();
+        setTimeout(function() { sendResponse(new Player(new YtMusicParser())); }, 100);
+        return true;
+    }
+    if (msg.cmd === 'nxt') {
+        btn = $('div.left-controls-buttons>.next-button')[0];
+        if (btn) btn.click();
+        setTimeout(function() { sendResponse(new Player(new YtMusicParser())); }, 100);
         return true;
     }
     return false;
-}
-
-function prev_song(msg, sndr, send_response) {
-    if (msg.cmd == "prv") {
-        var prev_btn = $("div.left-controls-buttons>.previous-button");
-        prev_btn.click();
-        setTimeout(function() {
-            send_response(new Player(new YtMusicParser()));
-        }, 100);
-        return true;
-    }
-    return false;
-}
-
-function next_song(msg, sndr, send_response) {
-    if (msg.cmd == "nxt") {
-        var next_btn = $("div.left-controls-buttons>.next-button");
-        next_btn.click();
-        setTimeout(function() {
-            send_response(new Player(new YtMusicParser()));
-        }, 100);
-        return true;
-    }
-    return false;
-}
+});
